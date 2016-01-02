@@ -14,7 +14,7 @@ try:
     CONFIG = sys.argv[1]
     METOD = sys.argv[2].upper()
     OPTION = sys.argv[3]
-
+    tiempo = str(time.time())
     #Apertura del fichero de configuración
     fich = open(CONFIG, 'r')
     line = fich.readlines()
@@ -68,29 +68,36 @@ my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 my_socket.connect((IP_PROXY, PUERTO_PROXY))
 
 if METOD == 'REGISTER':
+    fich = open(PATH_LOG, 'a')
+    Sent_Register = ": REGISTER sip:" + USUARIO + ":" + PUERTO
+    Sent_Register += " SIP/2.0 Expires: " + OPTION + '\r\n'
+    fich.write(tiempo + " Sent to " + IP_PROXY + ":" + PUERTO_PROXY
+               + Sent_Register)
     LINEA = METOD + " sip:" + USUARIO
     LINEA += ":" + PUERTO + " SIP/2.0\r\n" + "Expires: " + OPTION + "\r\n\r\n"
-    my_socket.send(bytes(LINEA, 'utf-8') + b'\r\n')
-    try:
-        data = my_socket.recv(1024)
-    except socket.error:
-        sys.exit(" Error:No server listening at " + IP_PROXY + " port " +
-                 + PUERTO_PROXY)
     if OPTION == '0':
         print "Terminando socket..."
         my_socket.close()
-
-if METOD == 'BYE':
+elif METOD == 'INVITE':
+	LINEA = METOD + " sip:" + OPTION + " SIP/2.0\r\n"
+	LINEA += "Content-Type: application/sdp\r\n\r\n"
+	LINEA += "v=0\r\n" + "o=" + USUARIO + " " + IP + " \r\n"
+    LINEA += "s=BigBang\r\n" + "t=0"
+	LINEA += "m=audio" + PUERTO_AUDIO + "RTP\r\n"
+elif METOD == 'BYE':
     LINEA = METOD + " sip:" + OPTION + " SIP/2.0" + '\r\n'
-    my_socket.send(bytes(LINEA, 'utf-8') + b'\r\n')
+my_socket.send(bytes(LINEA, 'utf-8') + b'\r\n')
+try:
     data = my_socket.recv(1024)
-    rcv_bye = data.split('\r\n\r\n')[0:-1]
-    try:
-        data = my_socket.recv(1024)
-    except socket.error:
-        sys.exit(" Error:No server listening at " + IP_PROXY + " port "
-                  + PUERTO_PROXY)
-
+    rec_invite = data.decode('utf-8').split('\r\n\r\n')[0:-1]
+except socket.error:
+    sys.exit(" Error:No server listening at " + IP_PROXY + " port " +
+             + PUERTO_PROXY)
+if rec_invite == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
+    LINE_ACK = 'ACK sip:' + RECEPTOR + '@' + IP_REC + ' SIP/2.0\r\n'
+    print("Enviando: " + LINE_ACK)
+    my_socket.send(bytes(LINE_ACK, 'utf-8') + b'\r\n')
+    data = my_socket.recv(1024)
 
 # Cerramos todo
 my_socket.close()
