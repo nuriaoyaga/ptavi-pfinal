@@ -68,16 +68,28 @@ my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 my_socket.connect((IP_REC, PORT_REC))
 
 if METOD == 'REGISTER':
-    LINEA1 = "REGISTER " + "sip:" + USUARIO
-    LINEA1 += ":" + PUERTO + " SIP/2.0\r\n" + "Expires: " + OPTION + "\r\n\r\n"
-    Contrasena = ' Password: ' + PASSWORD + ' \r\n'
-    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
-    data = my_socket.recv(1024)
+    LINEA = METOD + " sip:" + USUARIO
+    LINEA += ":" + PUERTO + " SIP/2.0\r\n" + "Expires: " + OPTION + "\r\n\r\n"
+    my_socket.send(bytes(LINEA, 'utf-8') + b'\r\n')
+    try:
+        data = my_socket.recv(1024)
+    except socket.error:
+        sys.exit(" Error:No server listening at " + IP_PROXY + " port " +
+                 + PUERTO_PROXY)
     if OPTION == '0':
         print "Terminando socket..."
         my_socket.close()
 
-
+if METOD == 'BYE':
+    LINEA = METOD + " sip:" + OPTION + " SIP/2.0" + '\r\n'
+    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
+    data = my_socket.recv(1024)
+    rcv_bye = data.split('\r\n\r\n')[0:-1]
+    try:
+        data = my_socket.recv(1024)
+    except socket.error:
+        sys.exit(" Error:No server listening at " + IP_PROXY + " port "
+                  + PUERTO_PROXY)
 
 #Envio del ACK si se recibe el TRYING,RING y OK
 rec_invite = data.decode('utf-8').split('\r\n\r\n')[0:-1]
