@@ -65,7 +65,7 @@ if METOD not in METODOS:
 # Creamos el socket, lo configuramos y lo atamos a un servidor/puerto
 my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-my_socket.connect((IP_REC, PORT_REC))
+my_socket.connect((IP_PROXY, PUERTO_PROXY))
 
 if METOD == 'REGISTER':
     LINEA = METOD + " sip:" + USUARIO
@@ -82,7 +82,7 @@ if METOD == 'REGISTER':
 
 if METOD == 'BYE':
     LINEA = METOD + " sip:" + OPTION + " SIP/2.0" + '\r\n'
-    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
+    my_socket.send(bytes(LINEA, 'utf-8') + b'\r\n')
     data = my_socket.recv(1024)
     rcv_bye = data.split('\r\n\r\n')[0:-1]
     try:
