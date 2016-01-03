@@ -4,9 +4,59 @@
 Clase (y programa principal) para un servidor de SIP con INVITE, ACK y BYE
 """
 
-import socketserver
+from xml.sax import make_parser
+from xml.sax.handler import ContentHandler
+import SocketServer
 import sys
 import os
+import time
+
+
+class XMLHandler(ContentHandler):
+
+    def __init__(self):
+        """
+        Constructor. Inicializamos las variables
+        """
+        self.XML = {
+            'account': ['username', 'passwd'],
+            'uaserver': ['ip', 'puerto'],
+            'rtpaudio': ['puerto'],
+            'regproxy': ['ip', 'puerto'],
+            'log': ['path'],
+            'audio': ['path']
+        }
+        self.config = {}
+
+    def startElement(self, name, attrs):
+        """
+        Método que se llama cuando se abre una etiqueta
+        """
+        if name in self.XML:
+            for attr in self.XML[name]:
+                self.config[name + "_" + attr] = attrs.get(attr, "")
+                if name + "_" + attr == 'uaserver_ip':
+                    if self.config['uaserver_ip'] == "":
+                        self.config['uaserver_ip'] = '127.0.0.1'
+
+    def get_tags(self):
+        return self.config
+
+
+class Log(ContentHandler):
+    def Log(self, fichero, tipo, to, message):
+        fich = open(fichero, 'a')
+        Time = time.strftime('%Y%m%d%H%M%S', time.gmtime())
+        message = message.replace('\r\n', ' ') + '\n'
+        if tipo == 'send':
+            fich.write(Time + ' Sent to ' + to + ': ' + message)
+        elif tipo == 'receive':
+            fich.write(Time + ' Received from ' + to + ': ' + message)
+        elif tipo == 'error':
+            fich.write(Time + "Error: No server listening at: " + message)
+        elif tipo == 'init/end':
+            fich.write(Time + ' ' + message)
+        fich.close()
 
 if len(sys.argv) != 4:
     sys.exit('Usage: python server.py IP port audio_file')
