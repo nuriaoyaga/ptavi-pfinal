@@ -44,8 +44,8 @@ if METOD == 'REGISTER':
     LINE = METOD + " sip:" + USER + " SIP/2.0\r\n" + EXPIRES
     print ("Enviado:\r\n" + LINE)
     my_socket.send(LINE)
-    Log().Log(UA['log_path'], 'Starting...')
-    Log().Log(UA['log_path'], 'sent to', PROXY, LINE)
+    Log().Log(UA['log_path'],'init/end', ' ', 'Starting...')
+    Log().Log(UA['log_path'], 'send', PROXY, LINE)
 elif METOD == 'INVITE':
     print ("Enviando:\r\n" + METHOD + " sip:" + OPTION + " SIP/2.0")
     HEAD = METOD + " sip:" + OPTION + " SIP/2.0\r\n" +
@@ -55,24 +55,23 @@ elif METOD == 'INVITE':
     BODY = "v=0\r\n" + O + "s=BigBang\r\n" + "t=0\r\n" + M
 	LINE = HEAD + BODY
     my_socket.send(LINE)
-    Log().Log(UA['log_path'], 'sent to', PROXY, LINE)
+    Log().Log(UA['log_path'], 'send', PROXY, LINE)
 elif METOD == 'BYE':
     LINE = METOD + " sip:" + OPTION + " SIP/2.0\r\n\r\n"
     print ("Enviando:\r\n" + LINE)
     my_socket.send(LINE)
-    Log().Log(UA['log_path'], 'sent to', PROXY, LINE)
+    Log().Log(UA['log_path'], 'send', PROXY, LINE)
 #Decodificación de lo recibido
 try:
     data = my_socket.recv(1024)
     rec = data.decode('utf-8').split('\r\n\r\n')[0:-1]
 except socket.error:
-    SOCKET_ERROR = "Error: No server listening at " + UA['regproxy_ip'] +
-                   + " PORT:" + UA['regproxy_puerto']
+    SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
     sys.exit(SOCKET_ERROR)
-    Log().Log(UA['log_path'], SOCKET_ERROR)
+    Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
 #Interpretación de lo recibido
 print 'Recibido\r\n', data
-Log().Log(UA['log_path'], 'Received from:', PROXY, data)
+Log().Log(UA['log_path'], 'receive:', PROXY, data)
 #Respuesta del invite
 if rec == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
@@ -86,10 +85,10 @@ if rec == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     print "Vamos a ejecutar", aEjecutar
     os.system(aEjecutar)
     print("Ha terminado la ejecución de fichero de audio")
-    Log().Log(UA['log_path'], 'Sent to:', PROXY, LINE_ACK)
+    Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
 #elif rec = ['SIP/2.0 200 OK'] and METOD = REGISTER:
 elif rec = ['SIP/2.0 200 OK'] and METOD = BYE:
-    Log().Log(UA['log_path'], 'Finishing...\n')
+    Log().Log(UA['log_path'], 'init/end', ' ', 'Finishing...\n')
 else:
     sys.exit(rec)
 # Cerramos todo
