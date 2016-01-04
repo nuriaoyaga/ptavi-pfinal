@@ -6,7 +6,7 @@ Clase (y programa principal) para un servidor de SIP con INVITE, ACK y BYE
 
 from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
-import SocketServer
+import socketserver
 import sys
 import os
 import time
@@ -67,7 +67,6 @@ class EchoHandler(socketserver.DatagramRequestHandler):
     METODOS = ['INVITE', 'BYE', 'ACK']
 
     def handle(self):
-        global Puerto_RTP
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
             line = self.rfile.read()
@@ -87,18 +86,18 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     LINE = b'SIP/2.0 100 Trying\r\n\r\n'
                     LINE += b'SIP/2.0 180 Ring\r\n\r\n'
                     LINE += b'SIP/2.0 200 OK\r\n\r\n'
-                    LINE += "Content-Type: application/sdp \r\n\r\n" +
-                             + "v=0 \r\n" + "o=" + USUARIO + " " + IP + ' \r\n'+
-                             + "s=BigBang" + ' \r\n' + "t=0" + ' \r\n' +
-                             + "m=audio " + str(PUERTO_AUDIO) + ' RTP' +
-                             + '\r\n\r\n'
+                    LINE += "Content-Type: application/sdp \r\n\r\n"
+                    LINE += "v=0 \r\n" + "o=" + USUARIO + " " + IP + ' \r\n'
+                    LINE += "s=BigBang" + ' \r\n' + "t=0" + ' \r\n'
+                    LINE += "m=audio " + str(PUERTO_AUDIO) + ' RTP'
+                    LINE += '\r\n\r\n'
                     self.wfile.write(LINE)
                     Log().Log(UA['log_path'], 'send', FROM, LINE)
                 elif metod == 'ACK':
                     rcv_Ip = line.split("o=")[1].split(" ")[1].split("s")[0]
                     rcv_Port = line.split("m=")[1].split(" ")[1]
-                    aEjecutar = './mp32rtp -i' + rcv_Ip + '-p' +
-                    aEjecutar+= str(rcv_Port) +' < ' + UA['audio_path']
+                    aEjecutar = './mp32rtp -i' + rcv_Ip + '-p'
+                    aEjecutar += str(rcv_Port) +' < ' + UA['audio_path']
                     print ('Vamos a ejecutar', aEjecutar)
                     os.system(aEjecutar)
                     print("Ha terminado la ejecución de fich de audio")
@@ -110,9 +109,11 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     LINE = "SIP/2.0 400 Bad Request\r\n\r\n"
                     self.wfile.write(LINE)
                     Log().Log(UA['log_path'], 'receive', FROM, LINE)
-                    
+
 
 if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        sys.exit('Usage: python uaclient.py config method option')
     #Apertura del fichero de configuración
     try:
         CONFIG = sys.argv[1]
@@ -124,6 +125,6 @@ if __name__ == "__main__":
     parser.parse(open(CONFIG))
     UA = cHandler.get_tags()
     serv = SocketServer.UDPServer(("", int(UA['uaserver_puerto'])), ServerHandler)
-    print "Listening..."
+    print ("Listening...")
     Log().Log(UA['log_path'], 'Init/end', ' ', 'Starting...')
     serv.serve_forever()
