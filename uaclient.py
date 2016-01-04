@@ -40,26 +40,26 @@ if METOD == 'REGISTER':
     except ValueError:
         sys.exit("Usage: int OPTION Required")
     USER = UA['account_username'] + ":" + UA['uaserver_puerto']
-    EXPIRES = "Expires: " + str(OPTION) + '\r\n\r\n'
+    EXPIRES = "Expires: " + str(OPTION) + '\r\n'
     LINE = METOD + " sip:" + USER + " SIP/2.0\r\n" + EXPIRES
     print ("Enviado:\r\n" + LINE)
-    my_socket.send(LINE)
+    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
     Log().Log(UA['log_path'],'init/end', ' ', 'Starting...')
     Log().Log(UA['log_path'], 'send', PROXY, LINE)
 elif METOD == 'INVITE':
     print ("Enviando:\r\n" + METHOD + " sip:" + OPTION + " SIP/2.0")
-    HEAD = METOD + " sip:" + OPTION + " SIP/2.0\r\n" +
-           + "Content-Type: application/sdp\r\n\r\n"
+    HEAD = METOD + " sip:" + OPTION + " SIP/2.0\r\n"
+    HEAD += "Content-Type: application/sdp\r\n\r\n"
     O = "o=" + UA['account_username'] + " " + UA['uaserver_ip'] + " \r\n"
     M = "m=audio " + UA['rtpaudio_puerto'] + " RTP\r\n"
     BODY = "v=0\r\n" + O + "s=BigBang\r\n" + "t=0\r\n" + M
-	LINE = HEAD + BODY
-    my_socket.send(LINE)
+    LINE = HEAD + BODY
+    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
     Log().Log(UA['log_path'], 'send', PROXY, LINE)
 elif METOD == 'BYE':
-    LINE = METOD + " sip:" + OPTION + " SIP/2.0\r\n\r\n"
+    LINE = METOD + " sip:" + OPTION + " SIP/2.0\r\n"
     print ("Enviando:\r\n" + LINE)
-    my_socket.send(LINE)
+    my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
     Log().Log(UA['log_path'], 'send', PROXY, LINE)
 #Decodificación de lo recibido
 try:
@@ -67,10 +67,10 @@ try:
     rec = data.decode('utf-8').split('\r\n\r\n')[0:-1]
 except socket.error:
     SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
-    sys.exit(SOCKET_ERROR)
     Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
+    sys.exit("Error: No server listening at " + SOCKET_ERROR)
 #Interpretación de lo recibido
-print 'Recibido\r\n', data
+print ('Recibido\r\n', data)
 Log().Log(UA['log_path'], 'receive:', PROXY, data)
 #Respuesta del invite
 if rec == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
@@ -82,12 +82,12 @@ if rec == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     rcv_Port = data.split("m=")[1].split(" ")[1]
     aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
     aEjecutar += rcv_Port + " < " + UA['audio_path']
-    print "Vamos a ejecutar", aEjecutar
+    print ("Vamos a ejecutar", aEjecutar)
     os.system(aEjecutar)
     print("Ha terminado la ejecución de fichero de audio")
     Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
 #elif rec = ['SIP/2.0 200 OK'] and METOD = REGISTER:
-elif rec = ['SIP/2.0 200 OK'] and METOD = BYE:
+elif rec == ['SIP/2.0 200 OK'] and METOD == "BYE":
     Log().Log(UA['log_path'], 'init/end', ' ', 'Finishing...\n')
 else:
     sys.exit(rec)
