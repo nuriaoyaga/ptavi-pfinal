@@ -33,7 +33,6 @@ my_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 my_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 my_socket.connect((UA['regproxy_ip'], int(UA['regproxy_puerto'])))
 PROXY = UA['regproxy_ip'] + ':' + UA['regproxy_puerto']
-#Método register (Falta autorizacion)
 if METOD == 'REGISTER':
     try:
         OPTION = int(OPTION)
@@ -71,7 +70,6 @@ except socket.error:
     Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
     sys.exit("Error: No server listening at " + SOCKET_ERROR)
 #Interpretación de lo recibido
-print ('Recibido\r\n' , datadec)
 Log().Log(UA['log_path'], 'receive:', PROXY, datadec)
 r_400 = "SIP/2.0 400 Bad Request\r\n\r\n"
 r_404 = "SIP/2.0 404 User Not Found\r\n\r\n"
