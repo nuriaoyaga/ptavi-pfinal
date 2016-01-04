@@ -51,6 +51,21 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             if usuario == Client:
                 self.UAS = self.users_dic[usuario]
 
+    def Conectar_Enviar_Decod(self,ip,puerto,line):
+            my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            my_sck.connect((ip, int(puerto)))
+            my_sck.send(line)
+            try:
+                data = my_sck.recv(1024)
+                datadec = data.decode('utf-8')
+            except socket.error:
+                SCK_ERROR =  ip + " PORT:" + puerto
+                Log().Log(PR['log_path'], 'error',' ', SCK_ERROR)
+                sys.exit("Error: No server listening at " + SCK_ERROR)
+            self.wfile.write(line)
+
+
     """
     Echo server class
     """
@@ -103,27 +118,16 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 Log().Log(PR['log_path'], 'send', UAC, LINE)
             elif metod == 'INVITE':
                 usuario = respuesta[1].split(':')[1]
-                print(usuario)
                 self.Buscar_usuario(usuario)
                 if self.UAS == {}:
                     LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
                     self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
-                    my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    my_sck.connect((self.UAS["address"], self.UAS["port"]))
-                    my_sck.send(line)
-                    UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
-                    Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
-                    try:
-                        data = my_sck.recv(1024)
-                        datadec = data.decode('utf-8')
-                    except socket.error:
-                        SCK_ERROR =  self.UAS["address"] + " PORT:" + str(self.UAS["port"])
-                        Log().Log(PR['log_path'], 'error',' ', SCK_ERROR)
-                        sys.exit("Error: No server listening at " + SCK_ERROR)
-                    self.wfile.write(bytes(datadec, 'utf-8'))
+                    port =str(self.UAS["port"])
+                    ip = self.UAS["address"]
+                    UASAD = ip + '' + port
+                    self.Conectar_Enviar_Decod(ip,port,line)
                     Log().Log(PR['log_path'], 'receive', UASAD, datadec)
                     Log().Log(PR['log_path'], 'send', UAC, datadec)
             elif metod == 'ACK':
@@ -137,26 +141,16 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
             elif metod == 'BYE':
                 usuario = respuesta[1].split(':')[1]
-                print(usuario)
                 self.Buscar_usuario(usuario)
                 if self.UAS == {}:
                     LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
                     self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
-                    UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
-                    my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                    my_sck.connect((self.UAS["address"], self.UAS["port"]))
-                    my_sck.send(line)
-                    try:
-                        data = my_sck.recv(1024)
-                        datadec = data.decode('utf-8')
-                    except socket.error:
-                        SCK_ERROR =  self.UAS["address"] + " PORT:" + str(self.UAS["port"])
-                        Log().Log(PR['log_path'], 'error',' ', SCK_ERROR)
-                        sys.exit("Error: No server listening at " + SCK_ERROR)
-                    self.wfile.write(bytes(datadec, 'utf-8'))
+                    port =str(self.UAS["port"])
+                    ip = self.UAS["address"]
+                    UASAD = ip + '' + port
+                    self.Conectar_Enviar_Decod(ip,port,line)
                     Log().Log(PR['log_path'], 'receive', UASAD, datadec)
                     Log().Log(PR['log_path'], 'send', UAC, datadec)
             else:
