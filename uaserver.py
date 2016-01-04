@@ -65,6 +65,8 @@ class ServerHandler(socketserver.DatagramRequestHandler):
     Servidor SIP con INVITE, ACK y BYE
     """
     METODOS = ['INVITE', 'BYE', 'ACK']
+    rcv_Ip = ""
+    rcv_Port = ""
 
     def handle(self):
         while 1:
@@ -73,15 +75,20 @@ class ServerHandler(socketserver.DatagramRequestHandler):
             # Si no hay más líneas salimos del bucle infinito
             if not line:
                 break
+            linedec = line.decode('utf-8')
             FROM = self.client_address[0] + ' ' + str(self.client_address[1])
-            Log().Log(UA['log_path'], 'receive', FROM, line.decode('utf-8'))
-            metod = line.decode('utf-8').split(' ')[0]
+            Log().Log(UA['log_path'], 'receive', FROM, linedec )
+            metod = linedec.split(' ')[0]
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
                 self.wfile.write(resp)
                 Log().Log(UA['log_path'], 'receive', FROM, LINE)
             else:
                 if metod == 'INVITE':
+                    #Variables necesarias para el envio de rtp
+                    self.rcv_Ip = linedec.split("o=")[1].split(" ")[1].split("s")[0]
+                    self.rcv_Port = linedec.split("m=")[1].split(" ")[1]
+                    #Respuesta al invite
                     LINE = "SIP/2.0 100 Trying\r\n\r\n"
                     LINE += "SIP/2.0 180 Ring\r\n\r\n"
                     LINE += "SIP/2.0 200 OK\r\n\r\n"
@@ -94,10 +101,8 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                     self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(UA['log_path'], 'send', FROM, LINE)
                 elif metod == 'ACK':
-                    rcv_Ip = line.split("o=")[1].split(" ")[1].split("s")[0]
-                    rcv_Port = line.split("m=")[1].split(" ")[1]
-                    aEjecutar = './mp32rtp -i' + rcv_Ip + '-p'
-                    aEjecutar += str(rcv_Port) +' < ' + UA['audio_path']
+                    aEjecutar = './mp32rtp -i' + self.rcv_Ip + '-p'
+                    aEjecutar += self.rcv_Port +' < ' + UA['audio_path']
                     print ('Vamos a ejecutar', aEjecutar)
                     os.system(aEjecutar)
                     print("Ha terminado la ejecución de fich de audio")
