@@ -12,6 +12,7 @@ import socketserver
 import socket
 import sys
 import time
+import json
 
 
 class XMLHandler(ContentHandler):
@@ -48,20 +49,20 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
     def Buscar_usuario(self, usuario):
         for Client in self.users_dic:
             if usuario == Client:
-                self.caract_dic = self.users_dic[usuario]
+                self.UAS = self.users_dic[usuario]
 
     """
     Echo server class
     """
     users_dic = {}
-    caract_dic = {}
+    UAS = {}
     METODOS = ['REGISTER', 'INVITE', 'ACK', 'BYE']
     def handle(self):
         UAC = self.client_address[0] + ' ' + str(self.client_address[1])
+        caract_dic = {}
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
             line = self.rfile.read()
-            print (line)
             if not line:
                 break
             Log().Log(PR['log_path'], 'receive', UAC, line.decode('utf-8'))
@@ -70,11 +71,10 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             metod = respuesta[0]
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
-                self.wfile.write(resp)
+                self.wfile.write(bytes(LINE, 'utf-8'))
                 Log().Log(UA['log_path'], 'receive', FROM, LINE)
             if metod == 'REGISTER':
                 #Comprobamos usuarios antiguos y sus tiempos de expiración
-                self.json2registered()
                 now = time.gmtime(time.time())
                 timenow = time.strftime('%Y-%m-%d %H:%M:%S', now)
                 Expires_list = []
@@ -88,28 +88,82 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 #Asignamos valores recibidos
                 usuario = respuesta[1].split(':')[1]
                 expires = int(respuesta[2].split(':')[1])
-                self.caract_dic["address"] = self.client_address[0]
+                caract_dic["address"] = self.client_address[0]
+                caract_dic["port"] = int(respuesta[1].split(':')[2])
                 expiration = time.gmtime(int(time.time()) + expires)
                 timeexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
-                self.caract_dic["expires"] = timeexp
-                self.users_dic[usuario] = self.caract_dic
+                caract_dic["expires"] = timeexp
+                self.users_dic[usuario] = caract_dic
                 #Da de baja al usuario
                 if expires == 0:
                     del self.users_dic[usuario]
+                self.register2json()
                 LINE = 'SIP/2.0 200 OK\r\n\r\n'
-                self.wfile.write(LINE)
+                self.wfile.write(bytes(LINE, 'utf-8'))
                 Log().Log(PR['log_path'], 'send', UAC, LINE)
+            elif metod == 'INVITE':
+                usuario = respuesta[1].split(':')[1]
+                print(usuario)
+                self.Buscar_usuario(usuario)
+                if self.UAS == {}:
+                    LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
+                    self.wfile.write(bytes(LINE, 'utf-8'))
+                    Log().Log(PR['log_path'], 'send', UAC, LINE)
+                else:
+                    my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    my_sck.connect((self.UAS["address"], self.UAS["port"]))
+                    my_sck.send(line)
+                    UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
+                    Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
+                    try:
+                        data = my_sck.recv(1024)
+                        datadec = data.decode('utf-8')
+                    except socket.error:
+                        SCK_ERROR =  self.UAS["address"] + " PORT:" + str(self.UAS["port"])
+                        Log().Log(PR['log_path'], 'error',' ', SCK_ERROR)
+                        sys.exit("Error: No server listening at " + SCK_ERROR)
+                    self.wfile.write(bytes(datadec, 'utf-8'))
+                    Log().Log(PR['log_path'], 'receive', UASAD, datadec)
+                    Log().Log(PR['log_path'], 'send', UAC, datadec)
+            elif metod == 'ACK':
+                usuario = respuesta[1].split(':')[1]
+                self.Buscar_usuario(usuario)
+                my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                my_sck.connect((self.UAS["address"], self.UAS["port"]))
+                my_sck.send(line)
+                UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
+                Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
+            elif metod == 'BYE':
+                usuario = respuesta[1].split(':')[1]
+                print(usuario)
+                self.Buscar_usuario(usuario)
+                if self.UAS == {}:
+                    LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
+                    self.wfile.write(bytes(LINE, 'utf-8'))
+                    Log().Log(PR['log_path'], 'send', UAC, LINE)
+                else:
+                    UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
+                    my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                    my_sck.connect((self.UAS["address"], self.UAS["port"]))
+                    my_sck.send(line)
+                    try:
+                        data = my_sck.recv(1024)
+                        datadec = data.decode('utf-8')
+                    except socket.error:
+                        SCK_ERROR =  self.UAS["address"] + " PORT:" + str(self.UAS["port"])
+                        Log().Log(PR['log_path'], 'error',' ', SCK_ERROR)
+                        sys.exit("Error: No server listening at " + SCK_ERROR)
+                    self.wfile.write(bytes(datadec, 'utf-8'))
+                    Log().Log(PR['log_path'], 'receive', UASAD, datadec)
+                    Log().Log(PR['log_path'], 'send', UAC, datadec)
             else:
-                pass
-            #elif metod == 'INVITE':
-                #usuario = respuesta[1].split(':')[1]
-                #Buscar_usuario(usuario)
-                #if UAS = {}:
-                    #LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
-                    #self.wfile.write(LINE)
-                    #Log().Log(PR['log_logpath'], 'send', UAC, LINE)
-                #self.wfile.write(b"Hemos recibido tu peticion")
-                #print("El cliente nos manda " + line.decode('utf-8'))
+                UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
+                LINE = "SIP/2.0 400 Bad Request\r\n\r\n"
+                self.wfile.write(bytes(LINE, 'utf-8'))
+                Log().Log(PR['log_logpath'], 'send', UASAD, LINE)
 
 
     def register2json(self):
