@@ -40,7 +40,7 @@ if METOD == 'REGISTER':
     except ValueError:
         sys.exit("Usage: int OPTION Required")
     USER = UA['account_username'] + ":" + UA['uaserver_puerto']
-    EXPIRES = "Expires: " + str(OPTION) + '\r\n'
+    EXPIRES = "Expires:" + str(OPTION) + '\r\n'
     LINE = METOD + " sip:" + USER + " SIP/2.0\r\n" + EXPIRES
     print ("Enviado:\r\n" + LINE)
     my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
@@ -64,22 +64,23 @@ elif METOD == 'BYE':
 #Decodificación de lo recibido
 try:
     data = my_socket.recv(1024)
-    rec = data.decode('utf-8').split('\r\n\r\n')[0:-1]
+    datadec = data.decode('utf-8')
+    rec = datadec.split('\r\n\r\n')[0:-1]
 except socket.error:
     SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
     Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
     sys.exit("Error: No server listening at " + SOCKET_ERROR)
 #Interpretación de lo recibido
-print ('Recibido\r\n', data)
-Log().Log(UA['log_path'], 'receive:', PROXY, data)
+print ('Recibido\r\n' , datadec)
+Log().Log(UA['log_path'], 'receive:', PROXY, datadec)
 #Respuesta del invite
 if rec == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
     print("Enviando: " + LINE_ACK)
     my_socket.send(bytes(LINE_ACK, 'utf-8') + b'\r\n')
     data = my_socket.recv(1024)
-    rcv_Ip = data.split("o=")[1].split(" ")[1].split("s")[0]
-    rcv_Port = data.split("m=")[1].split(" ")[1]
+    rcv_Ip = datadec.split("o=")[1].split(" ")[1].split("s")[0]
+    rcv_Port = datadec.split("m=")[1].split(" ")[1]
     aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
     aEjecutar += rcv_Port + " < " + UA['audio_path']
     print ("Vamos a ejecutar", aEjecutar)
