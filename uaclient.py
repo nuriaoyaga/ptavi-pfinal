@@ -47,7 +47,7 @@ if METOD == 'REGISTER':
     Log().Log(UA['log_path'],'init/end', ' ', 'Starting...')
     Log().Log(UA['log_path'], 'send', PROXY, LINE)
 elif METOD == 'INVITE':
-    print ("Enviando:\r\n" + METHOD + " sip:" + OPTION + " SIP/2.0")
+    print ("Enviando:\r\n" + METOD + " sip:" + OPTION + " SIP/2.0")
     HEAD = METOD + " sip:" + OPTION + " SIP/2.0\r\n"
     HEAD += "Content-Type: application/sdp\r\n\r\n"
     O = "o=" + UA['account_username'] + " " + UA['uaserver_ip'] + " \r\n"
@@ -73,24 +73,31 @@ except socket.error:
 #Interpretación de lo recibido
 print ('Recibido\r\n' , datadec)
 Log().Log(UA['log_path'], 'receive:', PROXY, datadec)
-#Respuesta del invite
-if rec == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
-    LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
-    print("Enviando: " + LINE_ACK)
-    my_socket.send(bytes(LINE_ACK, 'utf-8') + b'\r\n')
-    data = my_socket.recv(1024)
-    rcv_Ip = datadec.split("o=")[1].split(" ")[1].split("s")[0]
-    rcv_Port = datadec.split("m=")[1].split(" ")[1]
-    aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
-    aEjecutar += rcv_Port + " < " + UA['audio_path']
-    print ("Vamos a ejecutar", aEjecutar)
-    os.system(aEjecutar)
-    print("Ha terminado la ejecución de fichero de audio")
-    Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
-#elif rec = ['SIP/2.0 200 OK'] and METOD = REGISTER:
-elif rec == ['SIP/2.0 200 OK'] and METOD == "BYE":
-    Log().Log(UA['log_path'], 'init/end', ' ', 'Finishing...\n')
+r_400 = "SIP/2.0 400 Bad Request\r\n\r\n"
+r_404 = "SIP/2.0 404 User Not Found\r\n\r\n"
+r_404 = "SIP/2.0 404 Not Found\r\n\r\n"
+r_405 = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
+if datadec == r_400 or datadec == r_404 or datadec == r_405 or datadec == r_404:
+    sys.exit(detadec)
 else:
-    sys.exit(rec)
+    if METOD == "INVITE":
+        LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
+        print("Enviando: " + LINE_ACK)
+        my_socket.send(bytes(LINE_ACK, 'utf-8') + b'\r\n')
+        print(datadec)
+        rcv_Ip = datadec.split("o=")[1].split(" ")[1].split("s")[0]
+        rcv_Port = datadec.split("m=")[1].split(" ")[1]
+        aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
+        aEjecutar += rcv_Port + " < " + UA['audio_path']
+        print ("Vamos a ejecutar", aEjecutar)
+        os.system(aEjecutar)
+        print("Ha terminado la ejecución de fichero de audio")
+        Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
+    elif METOD == "REGISTER":
+        pass
+    elif METOD == "BYE":
+        Log().Log(UA['log_path'], 'init/end', ' ', 'Finishing...\n')
+    else:
+        sys.exit(detadec)
 # Cerramos todo
 my_socket.close()
