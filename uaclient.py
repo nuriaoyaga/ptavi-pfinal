@@ -75,9 +75,8 @@ print ('Recibido\r\n' , datadec)
 Log().Log(UA['log_path'], 'receive:', PROXY, datadec)
 r_400 = "SIP/2.0 400 Bad Request\r\n\r\n"
 r_404 = "SIP/2.0 404 User Not Found\r\n\r\n"
-r_404 = "SIP/2.0 404 Not Found\r\n\r\n"
 r_405 = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
-if datadec == r_400 or datadec == r_404 or datadec == r_405 or datadec == r_404:
+if datadec == r_400 or datadec == r_404 or datadec == r_405 :
     sys.exit(detadec)
 else:
     if METOD == "INVITE":
