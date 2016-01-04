@@ -60,7 +60,7 @@ class Log(ContentHandler):
 
 
 
-class EchoHandler(socketserver.DatagramRequestHandler):
+class ServerHandler(socketserver.DatagramRequestHandler):
     """
     Servidor SIP con INVITE, ACK y BYE
     """
@@ -73,25 +73,25 @@ class EchoHandler(socketserver.DatagramRequestHandler):
             # Si no hay más líneas salimos del bucle infinito
             if not line:
                 break
-            Log().Log(UA['log_path'], 'receive', FROM, line)
-            metod = line.decode('utf-8').split(' ')[0]
             FROM = self.client_address[0] + ' ' + str(self.client_address[1])
+            Log().Log(UA['log_path'], 'receive', FROM, line.decode('utf-8'))
+            metod = line.decode('utf-8').split(' ')[0]
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
                 self.wfile.write(resp)
                 Log().Log(UA['log_path'], 'receive', FROM, LINE)
             else:
                 if metod == 'INVITE':
-                    Log().Log(UA['log_path'], 'receive', FROM, line)
-                    LINE = b'SIP/2.0 100 Trying\r\n\r\n'
-                    LINE += b'SIP/2.0 180 Ring\r\n\r\n'
-                    LINE += b'SIP/2.0 200 OK\r\n\r\n'
-                    LINE += "Content-Type: application/sdp \r\n\r\n"
-                    LINE += "v=0 \r\n" + "o=" + USUARIO + " " + IP + ' \r\n'
-                    LINE += "s=BigBang" + ' \r\n' + "t=0" + ' \r\n'
-                    LINE += "m=audio " + str(PUERTO_AUDIO) + ' RTP'
-                    LINE += '\r\n\r\n'
-                    self.wfile.write(LINE)
+                    LINE = "SIP/2.0 100 Trying\r\n\r\n"
+                    LINE += "SIP/2.0 180 Ring\r\n\r\n"
+                    LINE += "SIP/2.0 200 OK\r\n\r\n"
+                    HEAD = "Content-Type: application/sdp\r\n\r\n"
+                    O = "o=" + UA['account_username'] + " " + UA['uaserver_ip']
+                    O += " \r\n"
+                    M = "m=audio " + UA['rtpaudio_puerto'] + " RTP\r\n"
+                    BODY = "v=0\r\n" + O + "s=BigBang\r\n" + "t=0\r\n" + M
+                    LINE += HEAD + BODY
+                    self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(UA['log_path'], 'send', FROM, LINE)
                 elif metod == 'ACK':
                     rcv_Ip = line.split("o=")[1].split(" ")[1].split("s")[0]
@@ -103,11 +103,11 @@ class EchoHandler(socketserver.DatagramRequestHandler):
                     print("Ha terminado la ejecución de fich de audio")
                 elif metod == 'BYE':
                     LINE = "SIP/2.0 200 OK\r\n\r\n"
-                    self.wfile.write(LINE)
+                    self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(UA['log_path'], 'receive', FROM, LINE)
                 else:
                     LINE = "SIP/2.0 400 Bad Request\r\n\r\n"
-                    self.wfile.write(LINE)
+                    self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(UA['log_path'], 'receive', FROM, LINE)
 
 
@@ -124,7 +124,7 @@ if __name__ == "__main__":
     parser.setContentHandler(cHandler)
     parser.parse(open(CONFIG))
     UA = cHandler.get_tags()
-    serv = SocketServer.UDPServer(("", int(UA['uaserver_puerto'])), ServerHandler)
+    serv = socketserver.UDPServer(("", int(UA['uaserver_puerto'])), ServerHandler)
     print ("Listening...")
     Log().Log(UA['log_path'], 'Init/end', ' ', 'Starting...')
     serv.serve_forever()
