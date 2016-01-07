@@ -13,6 +13,8 @@ import socket
 import sys
 import time
 import json
+import hashlib
+import random
 
 
 class XMLHandler(ContentHandler):
@@ -87,35 +89,44 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
                 self.wfile.write(bytes(LINE, 'utf-8'))
-                Log().Log(UA['log_path'], 'receive', FROM, LINE)
+                Log().Log(UA['log_path'], 'receive', UAC, LINE)
             if metod == 'REGISTER':
+                #Comprobamos autorizacion
+                if len(respuesta)==3:
+                    NONCE = random.getrandbits(898989898798989898989)
+                    LINE = b'SIP/2.0 401 Unauthorized\r\n\r\n'
+                    LINE += b'WWW Authenticate: nonce=' + NONCE
+                    self.wfile.write(LINE)
+                    print("Enviamos" + LINE)
+                    Log().Log(UA['log_path'], 'send', UAC, LINE)
+                else:
                 #Comprobamos usuarios antiguos y sus tiempos de expiración
-                now = time.gmtime(time.time())
-                timenow = time.strftime('%Y-%m-%d %H:%M:%S', now)
-                Expires_list = []
-                for user in self.users_dic:
-                    atributes = self.users_dic[user]
-                    timeexpiration = atributes["expires"]
-                    if timenow > timeexpiration:
-                        Expires_list.append(user)
-                for expired in Expires_list:
-                    del self.users_dic[expired]
-                #Asignamos valores recibidos
-                usuario = respuesta[1].split(':')[1]
-                expires = int(respuesta[2].split(':')[1])
-                caract_dic["address"] = self.client_address[0]
-                caract_dic["port"] = int(respuesta[1].split(':')[2])
-                expiration = time.gmtime(int(time.time()) + expires)
-                timeexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
-                caract_dic["expires"] = timeexp
-                self.users_dic[usuario] = caract_dic
-                #Da de baja al usuario
-                if expires == 0:
-                    del self.users_dic[usuario]
-                self.register2json()
-                LINE = 'SIP/2.0 200 OK\r\n\r\n'
-                self.wfile.write(bytes(LINE, 'utf-8'))
-                Log().Log(PR['log_path'], 'send', UAC, LINE)
+                    now = time.gmtime(time.time())
+                    timenow = time.strftime('%Y-%m-%d %H:%M:%S', now)
+                    Expires_list = []
+                    for user in self.users_dic:
+                        atributes = self.users_dic[user]
+                        timeexpiration = atributes["expires"]
+                        if timenow > timeexpiration:
+                            Expires_list.append(user)
+                    for expired in Expires_list:
+                        del self.users_dic[expired]
+                    #Asignamos valores recibidos
+                    usuario = respuesta[1].split(':')[1]
+                    expires = int(respuesta[2].split(':')[1])
+                    caract_dic["address"] = self.client_address[0]
+                    caract_dic["port"] = int(respuesta[1].split(':')[2])
+                    expiration = time.gmtime(int(time.time()) + expires)
+                    timeexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
+                    caract_dic["expires"] = timeexp
+                    self.users_dic[usuario] = caract_dic
+                    #Da de baja al usuario
+                    if expires == 0:
+                        del self.users_dic[usuario]
+                    self.register2json()
+                    LINE = 'SIP/2.0 200 OK\r\n\r\n'
+                    self.wfile.write(bytes(LINE, 'utf-8'))
+                    Log().Log(PR['log_path'], 'send', UAC, LINE)
             elif metod == 'INVITE':
                 usuario = respuesta[1].split(':')[1]
                 self.Buscar_usuario(usuario)
