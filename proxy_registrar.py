@@ -47,7 +47,10 @@ class XMLHandler(ContentHandler):
 
 
 class ProxyRegister(socketserver.DatagramRequestHandler):
-
+    users_dic = {}
+    UAS = {}
+    METODOS = ['REGISTER', 'INVITE', 'ACK', 'BYE']
+    NONCE = random.getrandbits(100)
     def Buscar_usuario(self, usuario):
         for Client in self.users_dic:
             if usuario == Client:
@@ -58,6 +61,12 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             my_sck.connect((ip, int(puerto)))
             my_sck.send(line)
+            Ip = self.client_address[0]
+            Port = self.client_address[1]
+            UAC = Ip + ' ' + str(Port)
+            UASAD = ip + ' ' + str(puerto)
+            Log().Log(PR['log_path'], 'send', UAC, line.decode('utf-8'))
+            print("Enviamos: " + line.decode('utf-8'))
             try:
                 data = my_sck.recv(1024)
                 datadec = data.decode('utf-8')
@@ -65,32 +74,45 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 SCK_ERROR =  ip + " PORT:" + puerto
                 Log().Log(PR['log_path'], 'error',' ', SCK_ERROR)
                 sys.exit("Error: No server listening at " + SCK_ERROR)
-            self.wfile.write(line)
+            Log().Log(PR['log_path'], 'receive', UASAD, line.decode('utf-8'))
+            self.wfile.write(bytes(datadec, 'utf-8'))
+            Log().Log(PR['log_path'], 'send', UAC, line.decode('utf-8'))
 
+    def CheckPsswd(self, Path, Passwd, User_agent, Ip, Puerto):
+        Found = 'False'
+        fich = open(Path, 'r')
+        lines = fich.readlines()
+        for line in range(len(lines)):
+            User = lines[line].split(' ')[1]
+            Password = lines[line].split(' ')[3]
+            Nonce = str(self.NONCE)
+            m = hashlib.md5()
+            m.update(bytes(Password + Nonce, 'utf-8'))
+            RESPONSE = m.hexdigest()
+            if User == User_agent:
+                if RESPONSE == Passwd:
+                    Found = 'True'
+        fich.close()
+        return Found
 
-    """
-    Echo server class
-    """
-    users_dic = {}
-    UAS = {}
-    METODOS = ['REGISTER', 'INVITE', 'ACK', 'BYE']
-    NONCE = random.getrandbits(100)
     def handle(self):
-        UAC = self.client_address[0] + ' ' + str(self.client_address[1])
+
         caract_dic = {}
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
             line = self.rfile.read()
             if not line:
                 break
+            Ip = self.client_address[0]
+            Port = self.client_address[1]
+            UAC = Ip + ' ' + str(Port)
             Log().Log(PR['log_path'], 'receive', UAC, line.decode('utf-8'))
             respuesta = line.decode('utf-8').split(' ')
-            print(respuesta)
             metod = respuesta[0]
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
                 self.wfile.write(bytes(LINE, 'utf-8'))
-                Log().Log(UA['log_path'], 'receive', UAC, LINE)
+                Log().Log(PR['log_path'], 'receive', UAC, LINE)
             if metod == 'REGISTER':
                 #Comprobamos autorizacion
                 if len(respuesta)==3:
@@ -101,48 +123,59 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                     print("Enviamos" + LINE)
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
-                #Comprobamos usuarios antiguos y sus tiempos de expiración
-                    now = time.gmtime(time.time())
-                    timenow = time.strftime('%Y-%m-%d %H:%M:%S', now)
-                    Expires_list = []
-                    for user in self.users_dic:
-                        atributes = self.users_dic[user]
-                        timeexpiration = atributes["expires"]
-                        if timenow > timeexpiration:
-                            Expires_list.append(user)
-                    for expired in Expires_list:
-                        del self.users_dic[expired]
-                    #Asignamos valores recibidos
                     usuario = respuesta[1].split(':')[1]
-                    expires = int(respuesta[2].split('\r\n')[1].split(':')[1])
-                    print(expires)
-                    caract_dic["address"] = self.client_address[0]
-                    caract_dic["port"] = int(respuesta[1].split(':')[2])
-                    expiration = time.gmtime(int(time.time()) + expires)
-                    timeexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
-                    caract_dic["expires"] = timeexp
-                    self.users_dic[usuario] = caract_dic
-                    #Da de baja al usuario
-                    if expires == 0:
-                        del self.users_dic[usuario]
-                    self.register2json()
-                    LINE = 'SIP/2.0 200 OK\r\n\r\n'
-                    self.wfile.write(bytes(LINE, 'utf-8'))
-                    Log().Log(PR['log_path'], 'send', UAC, LINE)
+                    pwd = respuesta[3].split('=')[1].split('\r\n')[0]
+                    Found = self.CheckPsswd(PR['database_passwdpath'], pwd,
+                                            usuario, Ip, Port)
+                    print (Found)
+                    if Found == 'True':
+                        #Comprobamos usuarios antiguos y sus tiempos de expiración
+                        now = time.gmtime(time.time())
+                        timenow = time.strftime('%Y-%m-%d %H:%M:%S', now)
+                        Expires_list = []
+                        for user in self.users_dic:
+                            atributes = self.users_dic[user]
+                            timeexpiration = atributes["expires"]
+                            if timenow > timeexpiration:
+                                Expires_list.append(user)
+                        for expired in Expires_list:
+                            del self.users_dic[expired]
+                        #Asignamos valores recibidos
+                        expire = respuesta[2].split('\r\n')[1].split(':')[1]
+                        expires = int(expire)
+                        caract_dic["address"] = self.client_address[0]
+                        caract_dic["port"] = int(respuesta[1].split(':')[2])
+                        expiration = time.gmtime(int(time.time()) + expires)
+                        timeexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
+                        caract_dic["expires"] = timeexp
+                        self.users_dic[usuario] = caract_dic
+                        #Da de baja al usuario
+                        if expires == 0:
+                            del self.users_dic[usuario]
+                        self.register2json()
+                        LINE = 'SIP/2.0 200 OK\r\n\r\n'
+                        self.wfile.write(bytes(LINE, 'utf-8'))
+                        print("Enviamos" + LINE)
+                        Log().Log(PR['log_path'], 'send', UAC, LINE)
+                    else:
+                        LINE = 'Acceso denegado: password is incorrect\r\n\r\n'
+                        self.wfile.write(bytes(message, 'utf-8'))
+                        print("Enviamos" + LINE)
+                        Log().Log(PR['log_path'], 'receive', UAC, LINE)
             elif metod == 'INVITE':
                 usuario = respuesta[1].split(':')[1]
                 self.Buscar_usuario(usuario)
                 if self.UAS == {}:
                     LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
                     self.wfile.write(bytes(LINE, 'utf-8'))
+                    print("Enviamos" + LINE)
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
                     port =str(self.UAS["port"])
                     ip = self.UAS["address"]
-                    UASAD = ip + '' + port
+                    print(port, ip)
                     self.Conectar_Enviar_Decod(ip,port,line)
-                    Log().Log(PR['log_path'], 'receive', UASAD, datadec)
-                    Log().Log(PR['log_path'], 'send', UAC, datadec)
+
             elif metod == 'ACK':
                 usuario = respuesta[1].split(':')[1]
                 self.Buscar_usuario(usuario)
@@ -162,14 +195,12 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 else:
                     port =str(self.UAS["port"])
                     ip = self.UAS["address"]
-                    UASAD = ip + '' + port
                     self.Conectar_Enviar_Decod(ip,port,line)
-                    Log().Log(PR['log_path'], 'receive', UASAD, datadec)
-                    Log().Log(PR['log_path'], 'send', UAC, datadec)
             else:
                 UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
                 LINE = "SIP/2.0 400 Bad Request\r\n\r\n"
                 self.wfile.write(bytes(LINE, 'utf-8'))
+                print("Enviamos" + LINE)
                 Log().Log(PR['log_logpath'], 'send', UASAD, LINE)
 
 
@@ -181,16 +212,6 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             json.dump(self.users_dic, fichero_json, sort_keys=True, indent=4,
                       separators=(',', ':'))
 
-    def json2registered(self):
-        """
-        Método que crea un diccionario con los usuarios registrados
-        anteriormente
-        """
-        try:
-            fich_json = open('registered.json', 'r')
-            self.users_dic = json.load(fich_json)
-        except:
-            self.users_dic = {}
 
 
 if __name__ == "__main__":
