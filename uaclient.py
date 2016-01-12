@@ -111,6 +111,8 @@ elif rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     os.system(aEjecutar)
     print("Ha terminado la ejecución de fichero de audio")
     Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
+elif rec =="Acceso denegado: password is incorrect\r\n\r\n":
+            print("Usage: The Password is incorrect")
 else:
         sys.exit(datadec)
 # Cerramos todo
