@@ -74,6 +74,7 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
     users_dic = {}
     UAS = {}
     METODOS = ['REGISTER', 'INVITE', 'ACK', 'BYE']
+    NONCE = random.getrandbits(100)
     def handle(self):
         UAC = self.client_address[0] + ' ' + str(self.client_address[1])
         caract_dic = {}
@@ -93,12 +94,12 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             if metod == 'REGISTER':
                 #Comprobamos autorizacion
                 if len(respuesta)==3:
-                    NONCE = random.getrandbits(898989898798989898989)
-                    LINE = b'SIP/2.0 401 Unauthorized\r\n\r\n'
-                    LINE += b'WWW Authenticate: nonce=' + NONCE
-                    self.wfile.write(LINE)
+                    LINE = 'SIP/2.0 401 Unauthorized\r\n'
+                    LINE += 'WWW Authenticate: nonce=' + str(self.NONCE)
+                    LINE += '\r\n\r\n'
+                    self.wfile.write(bytes(LINE, 'utf-8'))
                     print("Enviamos" + LINE)
-                    Log().Log(UA['log_path'], 'send', UAC, LINE)
+                    Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
                 #Comprobamos usuarios antiguos y sus tiempos de expiración
                     now = time.gmtime(time.time())
@@ -113,7 +114,8 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                         del self.users_dic[expired]
                     #Asignamos valores recibidos
                     usuario = respuesta[1].split(':')[1]
-                    expires = int(respuesta[2].split(':')[1])
+                    expires = int(respuesta[2].split('\r\n')[1].split(':')[1])
+                    print(expires)
                     caract_dic["address"] = self.client_address[0]
                     caract_dic["port"] = int(respuesta[1].split(':')[2])
                     expiration = time.gmtime(int(time.time()) + expires)
@@ -206,6 +208,6 @@ if __name__ == "__main__":
     # Creamos servidor de eco y escuchamos
     serv = socketserver.UDPServer(("", int(PR['server_puerto'])), ProxyRegister)
     # Escribimos inicio log_proxy.txt
-    Log().Log(PR['log_path'], 'Init/end', ' ', 'Starting...')
+    Log().Log(PR['log_path'],'init/end', ' ', 'Starting...')
     print("Lanzando servidor UDP de eco...")
     serv.serve_forever()
