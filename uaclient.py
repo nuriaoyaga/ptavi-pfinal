@@ -12,6 +12,7 @@ import sys
 import socket
 import os
 import time
+import hashlib
 
 # Cliente UDP simple.
 if len(sys.argv) != 4:
@@ -64,27 +65,36 @@ elif METOD == 'BYE':
 try:
     data = my_socket.recv(1024)
     datadec = data.decode('utf-8')
-    rec = datadec.split('\r\n\r\n')[0:-1]
-    print (rec)
+    Log().Log(UA['log_path'], 'receive', PROXY, datadec)
 except socket.error:
     SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
     Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
-    sys.exit("Error: No server listening at " + SOCKET_ERROR)
+    sys.exit("Error: No server listening at " + PROXY)
+rec = datadec.split('\r\n\r\n')[0:-1]
 #Interpretación de lo recibido
-Log().Log(UA['log_path'], 'receive:', PROXY, datadec)
 r_400 = "SIP/2.0 400 Bad Request\r\n\r\n"
 r_404 = "SIP/2.0 404 User Not Found\r\n\r\n"
 r_405 = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
-r_401 = "SIP/2.0 401 Unauthorized\r\n"
+r_401 = "SIP/2.0 401 Unauthorized"
 if datadec == r_400 or datadec == r_404 or datadec == r_405 :
-    sys.exit(detadec)
-    #m = hashlib.md5()
-    #Nonce = rec[1].split('=')[1]
-    #m.update(bytes(UA['account_passwd'] + Nonce, 'utf-8'))
-    #RESPONSE = m.hexdigest()
-    #Line_Authorization = "Authorization: response=" + RESPONSE + "\r\n"
-    #LINE_REGIST = LINE + Line_Authorization
-    #my_socket.send(bytes(LINE_REGIST, 'utf-8') + b'\r\n')
+    sys.exit(datadec)
+elif rec[0].split('\r\n')[0] == r_401:
+    m = hashlib.md5()
+    Nonce = rec[0].split('=')[1]
+    m.update(bytes(UA['account_passwd'] + Nonce, 'utf-8'))
+    RESPONSE = m.hexdigest()
+    Line_Authorization = "\r\n" +"Authorization: response=" + RESPONSE + "\r\n"
+    LINE_REGIST = LINE + Line_Authorization
+    my_socket.send(bytes(LINE_REGIST, 'utf-8') + b'\r\n')
+    Log().Log(UA['log_path'], 'send', PROXY, LINE_REGIST)
+    try:
+        data = my_socket.recv(1024)
+        datadec = data.decode('utf-8')
+        Log().Log(UA['log_path'], 'receive', PROXY, datadec)
+    except socket.error:
+        SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
+        Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
+        sys.exit("Error: No server listening at " + PROXY)
 else:
     if METOD == "INVITE":
         LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
