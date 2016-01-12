@@ -81,7 +81,8 @@ class ServerHandler(socketserver.DatagramRequestHandler):
             metod = linedec.split(' ')[0]
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
-                self.wfile.write(resp)
+                self.wfile.write(LINE)
+                print("Enviamos" + LINE)
                 Log().Log(UA['log_path'], 'receive', FROM, LINE)
             else:
                 if metod == 'INVITE':
@@ -99,6 +100,7 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                     BODY = "v=0\r\n" + O + "s=BigBang\r\n" + "t=0\r\n" + M
                     LINE += HEAD + BODY
                     self.wfile.write(bytes(LINE, 'utf-8'))
+                    print("Enviamos" + LINE)
                     Log().Log(UA['log_path'], 'send', FROM, LINE)
                 elif metod == 'ACK':
                     aEjecutar = './mp32rtp -i' + self.rcv_Ip + '-p'
@@ -109,10 +111,12 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                 elif metod == 'BYE':
                     LINE = "SIP/2.0 200 OK\r\n\r\n"
                     self.wfile.write(bytes(LINE, 'utf-8'))
+                    print("Enviamos" + LINE)
                     Log().Log(UA['log_path'], 'receive', FROM, LINE)
                 else:
                     LINE = "SIP/2.0 400 Bad Request\r\n\r\n"
                     self.wfile.write(bytes(LINE, 'utf-8'))
+                    print("Enviamos" + LINE)
                     Log().Log(UA['log_path'], 'receive', FROM, LINE)
 
 
