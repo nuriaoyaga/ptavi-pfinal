@@ -14,6 +14,7 @@ import os
 import time
 import hashlib
 
+
 # Cliente UDP simple.
 if len(sys.argv) != 4:
     sys.exit('Usage: python uaclient.py config method option')
@@ -54,6 +55,7 @@ elif METOD == 'INVITE':
     M = "m=audio " + UA['rtpaudio_puerto'] + " RTP\r\n"
     BODY = "v=0\r\n" + O + "s=BigBang\r\n" + "t=0\r\n" + M
     LINE = HEAD + BODY
+    print ("Enviado:\r\n" + LINE)
     my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
     Log().Log(UA['log_path'], 'send', PROXY, LINE)
 elif METOD == 'BYE':
@@ -71,6 +73,7 @@ except socket.error:
     Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
     sys.exit("Error: No server listening at " + PROXY)
 rec = datadec.split('\r\n\r\n')[0:-1]
+print (rec[0:3])
 #Interpretación de lo recibido
 r_400 = "SIP/2.0 400 Bad Request\r\n\r\n"
 r_404 = "SIP/2.0 404 User Not Found\r\n\r\n"
@@ -85,6 +88,7 @@ elif rec[0].split('\r\n')[0] == r_401:
     RESPONSE = m.hexdigest()
     Line_Authorization = "\r\n" +"Authorization: response=" + RESPONSE + "\r\n"
     LINE_REGIST = LINE + Line_Authorization
+    print ("Enviado:\r\n" + LINE_REGIST)
     my_socket.send(bytes(LINE_REGIST, 'utf-8') + b'\r\n')
     Log().Log(UA['log_path'], 'send', PROXY, LINE_REGIST)
     try:
@@ -95,25 +99,19 @@ elif rec[0].split('\r\n')[0] == r_401:
         SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
         Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
         sys.exit("Error: No server listening at " + PROXY)
+elif rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
+    LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
+    print("Enviando: " + LINE_ACK)
+    my_socket.send(bytes(LINE_ACK, 'utf-8') + b'\r\n')
+    rcv_Ip = datadec.split("o=")[1].split(" ")[1].split("s")[0]
+    rcv_Port = datadec.split("m=")[1].split(" ")[1]
+    aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
+    aEjecutar += rcv_Port + " < " + UA['audio_path']
+    print ("Vamos a ejecutar", aEjecutar)
+    os.system(aEjecutar)
+    print("Ha terminado la ejecución de fichero de audio")
+    Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
 else:
-    if METOD == "INVITE":
-        LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
-        print("Enviando: " + LINE_ACK)
-        my_socket.send(bytes(LINE_ACK, 'utf-8') + b'\r\n')
-        print(datadec)
-        rcv_Ip = datadec.split("o=")[1].split(" ")[1].split("s")[0]
-        rcv_Port = datadec.split("m=")[1].split(" ")[1]
-        aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
-        aEjecutar += rcv_Port + " < " + UA['audio_path']
-        print ("Vamos a ejecutar", aEjecutar)
-        os.system(aEjecutar)
-        print("Ha terminado la ejecución de fichero de audio")
-        Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
-    elif METOD == "REGISTER":
-        pass
-    elif METOD == "BYE":
-        Log().Log(UA['log_path'], 'init/end', ' ', 'Finishing...\n')
-    else:
-        sys.exit(detadec)
+        sys.exit(datadec)
 # Cerramos todo
 my_socket.close()
