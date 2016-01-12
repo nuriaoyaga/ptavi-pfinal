@@ -1,5 +1,5 @@
 <config>
 	<server name="Intermedio" ip="127.0.0.1" puerto="4875"/>
-	<database path="database.txt" passwdpath="" />
+	<database path="database.txt" passwdpath="passwd.txt" />
   <log path="proxy_log.txt"/>
 </config>
