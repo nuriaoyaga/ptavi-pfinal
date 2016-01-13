@@ -59,7 +59,6 @@ class Log(ContentHandler):
         fich.close()
 
 
-
 class ServerHandler(socketserver.DatagramRequestHandler):
     """
     Servidor SIP con INVITE, ACK y BYE
@@ -77,7 +76,7 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                 break
             linedec = line.decode('utf-8')
             FROM = self.client_address[0] + ' ' + str(self.client_address[1])
-            Log().Log(UA['log_path'], 'receive', FROM, linedec )
+            Log().Log(UA['log_path'], 'receive', FROM, linedec)
             metod = linedec.split(' ')[0]
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
@@ -87,7 +86,8 @@ class ServerHandler(socketserver.DatagramRequestHandler):
             else:
                 if metod == 'INVITE':
                     #Variables necesarias para el envio de rtp
-                    self.rcv_Ip = linedec.split("o=")[1].split(" ")[1].split("s")[0]
+                    origen = linedec.split("o=")[1]
+                    self.rcv_Ip = origen.split(" ")[1].split("s")[0]
                     self.rcv_Port = linedec.split("m=")[1].split(" ")[1]
                     #Respuesta al invite
                     LINE = "SIP/2.0 100 Trying\r\n\r\n"
@@ -104,7 +104,7 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                     Log().Log(UA['log_path'], 'send', FROM, LINE)
                 elif metod == 'ACK':
                     aEjecutar = './mp32rtp -i' + self.rcv_Ip + '-p'
-                    aEjecutar += self.rcv_Port +' < ' + UA['audio_path']
+                    aEjecutar += self.rcv_Port + ' < ' + UA['audio_path']
                     print ('Vamos a ejecutar', aEjecutar)
                     os.system(aEjecutar)
                     print("Ha terminado la ejecución de fich de audio")
@@ -133,7 +133,8 @@ if __name__ == "__main__":
     parser.setContentHandler(cHandler)
     parser.parse(open(CONFIG))
     UA = cHandler.get_tags()
-    serv = socketserver.UDPServer(("", int(UA['uaserver_puerto'])), ServerHandler)
+    port = int(UA['uaserver_puerto'])
+    serv = socketserver.UDPServer(("", port), ServerHandler)
     print ("Listening...")
     Log().Log(UA['log_path'], 'Init/end', ' ', 'Starting...')
     serv.serve_forever()
