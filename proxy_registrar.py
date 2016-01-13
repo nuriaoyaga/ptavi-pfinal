@@ -51,12 +51,13 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
     UAS = {}
     METODOS = ['REGISTER', 'INVITE', 'ACK', 'BYE']
     NONCE = random.getrandbits(100)
+
     def Buscar_usuario(self, usuario):
         for Client in self.users_dic:
             if usuario == Client:
                 self.UAS = self.users_dic[usuario]
 
-    def Conectar_Enviar_Decod(self,ip,puerto,line):
+    def Conectar_Enviar_Decod(self, ip, puerto, line):
             my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             my_sck.connect((ip, int(puerto)))
@@ -65,18 +66,18 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             Port = self.client_address[1]
             UAC = Ip + ' ' + str(Port)
             UASAD = ip + ' ' + str(puerto)
-            Log().Log(PR['log_path'], 'send', UAC, line.decode('utf-8'))
+            Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
             print("Enviamos: " + line.decode('utf-8'))
             try:
                 data = my_sck.recv(1024)
                 datadec = data.decode('utf-8')
             except socket.error:
-                SCK_ERROR =  ip + " PORT:" + puerto
-                Log().Log(PR['log_path'], 'error',' ', SCK_ERROR)
+                SCK_ERROR = ip + " PORT:" + puerto
+                Log().Log(PR['log_path'], 'error', ' ', SCK_ERROR)
                 sys.exit("Error: No server listening at " + SCK_ERROR)
-            Log().Log(PR['log_path'], 'receive', UASAD, line.decode('utf-8'))
+            Log().Log(PR['log_path'], 'receive', UASAD, datadec)
             self.wfile.write(bytes(datadec, 'utf-8'))
-            Log().Log(PR['log_path'], 'send', UAC, line.decode('utf-8'))
+            Log().Log(PR['log_path'], 'send', UAC, datadec)
 
     def CheckPsswd(self, Path, Passwd, User_agent, Ip, Puerto):
         Found = 'False'
@@ -115,21 +116,20 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 Log().Log(PR['log_path'], 'receive', UAC, LINE)
             if metod == 'REGISTER':
                 #Comprobamos autorizacion
-                if len(respuesta)==3:
+                if len(respuesta) == 3:
                     LINE = 'SIP/2.0 401 Unauthorized\r\n'
                     LINE += 'WWW Authenticate: nonce=' + str(self.NONCE)
                     LINE += '\r\n\r\n'
                     self.wfile.write(bytes(LINE, 'utf-8'))
-                    print("Enviamos" + LINE)
+                    print("Enviamos: " + LINE)
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
                     usuario = respuesta[1].split(':')[1]
                     pwd = respuesta[3].split('=')[1].split('\r\n')[0]
                     Found = self.CheckPsswd(PR['database_passwdpath'], pwd,
                                             usuario, Ip, Port)
-                    print (Found)
                     if Found == 'True':
-                        #Comprobamos usuarios antiguos y sus tiempos de expiración
+                        #Comprobamos usuarios antiguos
                         now = time.gmtime(time.time())
                         timenow = time.strftime('%Y-%m-%d %H:%M:%S', now)
                         Expires_list = []
@@ -146,8 +146,8 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                         caract_dic["address"] = self.client_address[0]
                         caract_dic["port"] = int(respuesta[1].split(':')[2])
                         expiration = time.gmtime(int(time.time()) + expires)
-                        timeexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
-                        caract_dic["expires"] = timeexp
+                        timexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
+                        caract_dic["expires"] = timexp
                         self.users_dic[usuario] = caract_dic
                         #Da de baja al usuario
                         if expires == 0:
@@ -155,12 +155,12 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                         self.register2json()
                         LINE = 'SIP/2.0 200 OK\r\n\r\n'
                         self.wfile.write(bytes(LINE, 'utf-8'))
-                        print("Enviamos" + LINE)
+                        print("Enviamos: " + LINE)
                         Log().Log(PR['log_path'], 'send', UAC, LINE)
                     else:
                         LINE = 'Acceso denegado: password is incorrect\r\n\r\n'
-                        self.wfile.write(bytes(message, 'utf-8'))
-                        print("Enviamos" + LINE)
+                        self.wfile.write(bytes(LINE, 'utf-8'))
+                        print("Enviamos: " + LINE)
                         Log().Log(PR['log_path'], 'receive', UAC, LINE)
             elif metod == 'INVITE':
                 usuario = respuesta[1].split(':')[1]
@@ -168,13 +168,12 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 if self.UAS == {}:
                     LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
                     self.wfile.write(bytes(LINE, 'utf-8'))
-                    print("Enviamos" + LINE)
+                    print("Enviamos: " + LINE)
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
-                    port =str(self.UAS["port"])
+                    port = str(self.UAS["port"])
                     ip = self.UAS["address"]
-                    print(port, ip)
-                    self.Conectar_Enviar_Decod(ip,port,line)
+                    self.Conectar_Enviar_Decod(ip, port, line)
 
             elif metod == 'ACK':
                 usuario = respuesta[1].split(':')[1]
@@ -183,6 +182,7 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 my_sck.connect((self.UAS["address"], self.UAS["port"]))
                 my_sck.send(line)
+                print("Enviamos: " + line.decode('utf-8'))
                 UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
                 Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
             elif metod == 'BYE':
@@ -190,19 +190,19 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 self.Buscar_usuario(usuario)
                 if self.UAS == {}:
                     LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
+                    print("Enviamos: " + LINE)
                     self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
-                    port =str(self.UAS["port"])
+                    port = str(self.UAS["port"])
                     ip = self.UAS["address"]
-                    self.Conectar_Enviar_Decod(ip,port,line)
+                    self.Conectar_Enviar_Decod(ip, port, line)
             else:
                 UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
                 LINE = "SIP/2.0 400 Bad Request\r\n\r\n"
                 self.wfile.write(bytes(LINE, 'utf-8'))
-                print("Enviamos" + LINE)
+                print("Enviamos: " + LINE)
                 Log().Log(PR['log_logpath'], 'send', UASAD, LINE)
-
 
     def register2json(self):
         """
@@ -211,7 +211,6 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
         with open(PR['database_path'], 'w') as fichero_json:
             json.dump(self.users_dic, fichero_json, sort_keys=True, indent=4,
                       separators=(',', ':'))
-
 
 
 if __name__ == "__main__":
@@ -227,8 +226,9 @@ if __name__ == "__main__":
     parser.parse(open(CONFIG))
     PR = cHandler.get_tags()
     # Creamos servidor de eco y escuchamos
-    serv = socketserver.UDPServer(("", int(PR['server_puerto'])), ProxyRegister)
+    port = int(PR['server_puerto'])
+    serv = socketserver.UDPServer(("", port), ProxyRegister)
     # Escribimos inicio log_proxy.txt
-    Log().Log(PR['log_path'],'init/end', ' ', 'Starting...')
+    Log().Log(PR['log_path'], 'init/end', ' ', 'Starting...')
     print("Lanzando servidor UDP de eco...")
     serv.serve_forever()
