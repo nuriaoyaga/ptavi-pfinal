@@ -40,12 +40,13 @@ if METOD == 'REGISTER':
         OPTION = int(OPTION)
     except ValueError:
         sys.exit("Usage: int OPTION Required")
+    if OPTION > 0:
+        Log().Log(UA['log_path'], 'init/end', ' ', 'Starting...')
     USER = UA['account_username'] + ":" + UA['uaserver_puerto']
     EXPIRES = "Expires:" + str(OPTION) + '\r\n'
     LINE = METOD + " sip:" + USER + " SIP/2.0\r\n" + EXPIRES
     print ("Enviado:\r\n" + LINE)
     my_socket.send(bytes(LINE, 'utf-8') + b'\r\n')
-    Log().Log(UA['log_path'],'init/end', ' ', 'Starting...')
     Log().Log(UA['log_path'], 'send', PROXY, LINE)
 elif METOD == 'INVITE':
     print ("Enviando:\r\n" + METOD + " sip:" + OPTION + " SIP/2.0")
@@ -70,23 +71,23 @@ try:
     Log().Log(UA['log_path'], 'receive', PROXY, datadec)
 except socket.error:
     SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
-    Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
+    Log().Log(UA['log_path'], 'error', ' ', SOCKET_ERROR)
     sys.exit("Error: No server listening at " + PROXY)
 rec = datadec.split('\r\n\r\n')[0:-1]
-print (rec[0:3])
 #Interpretación de lo recibido
 r_400 = "SIP/2.0 400 Bad Request\r\n\r\n"
 r_404 = "SIP/2.0 404 User Not Found\r\n\r\n"
 r_405 = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
 r_401 = "SIP/2.0 401 Unauthorized"
-if datadec == r_400 or datadec == r_404 or datadec == r_405 :
+if datadec == r_400 or datadec == r_404 or datadec == r_405:
     sys.exit(datadec)
 elif rec[0].split('\r\n')[0] == r_401:
     m = hashlib.md5()
     Nonce = rec[0].split('=')[1]
     m.update(bytes(UA['account_passwd'] + Nonce, 'utf-8'))
     RESPONSE = m.hexdigest()
-    Line_Authorization = "\r\n" +"Authorization: response=" + RESPONSE + "\r\n"
+    Line_Authorization = "\r\n" + "Authorization: response="
+    Line_Authorization += RESPONSE + "\r\n"
     LINE_REGIST = LINE + Line_Authorization
     print ("Enviado:\r\n" + LINE_REGIST)
     my_socket.send(bytes(LINE_REGIST, 'utf-8') + b'\r\n')
@@ -95,9 +96,11 @@ elif rec[0].split('\r\n')[0] == r_401:
         data = my_socket.recv(1024)
         datadec = data.decode('utf-8')
         Log().Log(UA['log_path'], 'receive', PROXY, datadec)
+        if OPTION == 0:
+            Log().Log(UA['log_path'], 'init/end', ' ', 'Finishing...')
     except socket.error:
         SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
-        Log().Log(UA['log_path'], 'error',' ', SOCKET_ERROR)
+        Log().Log(UA['log_path'], 'error', ' ', SOCKET_ERROR)
         sys.exit("Error: No server listening at " + PROXY)
 elif rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     LINE_ACK = "ACK sip:" + OPTION + " SIP/2.0\r\n\r\n"
@@ -111,7 +114,7 @@ elif rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     os.system(aEjecutar)
     print("Ha terminado la ejecución de fichero de audio")
     Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
-elif rec =="Acceso denegado: password is incorrect\r\n\r\n":
+elif rec == "Acceso denegado: password is incorrect\r\n\r\n":
             print("Usage: The Password is incorrect")
 else:
         sys.exit(datadec)
