@@ -114,8 +114,12 @@ elif rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     rcv_Port = datadec.split("m=")[1].split(" ")[1]
     aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
     aEjecutar += rcv_Port + " < " + UA['audio_path']
+    aEjecutar_cvlc = 'cvlc rtp://@' + rcv_Ip + ':'
+    aEjecutar_cvlc += rcv_Port + " 2> /dev/null"
     print ("Vamos a ejecutar", aEjecutar)
+    print ("Vamos a ejecutar", aEjecutar_cvlc)
     os.system(aEjecutar)
+    os.system(aEjecutar_cvlc + "&")
     print("Ha terminado la ejecución de fichero de audio")
     Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
 elif rec == "Acceso denegado: password is incorrect\r\n\r\n":
