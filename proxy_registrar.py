@@ -1,8 +1,7 @@
 #!/usr/bin/python
 # -*- coding: iso-8859-15 -*-
 """
-Clase (y programa principal) para un servidor SIP
-en UDP simple
+Clase (y programa principal) para un servidor PROXY
 """
 
 from xml.sax import make_parser
@@ -53,40 +52,54 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
     NONCE = random.getrandbits(100)
 
     def Buscar_usuario(self, usuario):
+        """
+        Método que busca si un usuario está registrado
+        """
         for Client in self.users_dic:
             if usuario == Client:
                 self.UAS = self.users_dic[usuario]
 
     def Conectar_Enviar_Decod(self, ip, puerto, line):
-            my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            my_sck.connect((ip, int(puerto)))
-            my_sck.send(line)
-            Ip = self.client_address[0]
-            Port = self.client_address[1]
-            UAC = Ip + ' ' + str(Port)
-            UASAD = ip + ' ' + str(puerto)
-            Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
-            print("Enviamos: " + line.decode('utf-8'))
-            try:
-                data = my_sck.recv(1024)
-                datadec = data.decode('utf-8')
-            except socket.error:
-                SCK_ERROR = ip + " PORT:" + puerto
-                Log().Log(PR['log_path'], 'error', ' ', SCK_ERROR)
-                sys.exit("Error: No server listening at " + SCK_ERROR)
-            Log().Log(PR['log_path'], 'receive', UASAD, datadec)
-            self.wfile.write(bytes(datadec, 'utf-8'))
-            Log().Log(PR['log_path'], 'send', UAC, datadec)
+        """
+        Método que conecta a un socket, envía y decodifica lo recibido
+        """
+        #Conexión y envío
+        my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        my_sck.connect((ip, int(puerto)))
+        my_sck.send(line)
+        Ip = self.client_address[0]
+        Port = self.client_address[1]
+        UAC = Ip + ' ' + str(Port)
+        UASAD = ip + ' ' + str(puerto)
+        Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
+        print("Enviamos: " + line.decode('utf-8'))
+        #Recibe, decodifica y responde
+        try:
+            data = my_sck.recv(1024)
+            datadec = data.decode('utf-8')
+        except socket.error:
+            SCK_ERROR = ip + " PORT:" + puerto
+            Log().Log(PR['log_path'], 'error', ' ', SCK_ERROR)
+            sys.exit("Error: No server listening at " + SCK_ERROR)
+        Log().Log(PR['log_path'], 'receive', UASAD, datadec)
+        self.wfile.write(bytes(datadec, 'utf-8'))
+        Log().Log(PR['log_path'], 'send', UAC, datadec)
 
     def CheckPsswd(self, Path, Passwd, User_agent, Ip, Puerto):
+        """
+        Método que comprueba la contraseña
+        """
         Found = 'False'
+        #Abrimos el fichero de contraseñas
         fich = open(Path, 'r')
         lines = fich.readlines()
+        #Comprobamos línea a línea si exixte el par usuario-contraseña
         for line in range(len(lines)):
             User = lines[line].split(' ')[1]
             Password = lines[line].split(' ')[3]
             Nonce = str(self.NONCE)
+            #Para comparar debemos codificar lo que hay en el fichero
             m = hashlib.md5()
             m.update(bytes(Password + Nonce, 'utf-8'))
             RESPONSE = m.hexdigest()
@@ -97,7 +110,9 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
         return Found
 
     def handle(self):
-
+        """
+        Método que maneja el proxy
+        """
         caract_dic = {}
         while 1:
             # Leyendo línea a línea lo que nos envía el cliente
@@ -171,6 +186,7 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                     print("Enviamos: " + LINE)
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
+                    #Pasa lo que ha recibido al servidor
                     port = str(self.UAS["port"])
                     ip = self.UAS["address"]
                     self.Conectar_Enviar_Decod(ip, port, line)
@@ -178,6 +194,7 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             elif metod == 'ACK':
                 usuario = respuesta[1].split(':')[1]
                 self.Buscar_usuario(usuario)
+                #Conecta con el servidor y envía ACK
                 my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 my_sck.connect((self.UAS["address"], self.UAS["port"]))
@@ -194,6 +211,7 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                     self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
+                    #Mismo procedimiento que IVITE
                     port = str(self.UAS["port"])
                     ip = self.UAS["address"]
                     self.Conectar_Enviar_Decod(ip, port, line)
