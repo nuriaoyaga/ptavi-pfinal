@@ -108,8 +108,12 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                 elif metod == 'ACK':
                     aEjecutar = './mp32rtp -i' + self.rcv_Ip + '-p'
                     aEjecutar += self.rcv_Port + ' < ' + UA['audio_path']
-                    print ('Vamos a ejecutar', aEjecutar)
+                    aEjecutar_cvlc = 'cvlc rtp://@' + self.rcv_Ip + ':'
+                    aEjecutar_cvlc += self.rcv_Port + " 2> /dev/null"
+                    print ("Vamos a ejecutar", aEjecutar)
+                    print ("Vamos a ejecutar", aEjecutar_cvlc)
                     os.system(aEjecutar)
+                    os.system(aEjecutar_cvlc + "&")
                     print("Ha terminado la ejecución de fich de audio")
                 elif metod == 'BYE':
                     LINE = "SIP/2.0 200 OK\r\n\r\n"
