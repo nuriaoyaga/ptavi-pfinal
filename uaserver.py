@@ -45,6 +45,9 @@ class XMLHandler(ContentHandler):
 
 class Log(ContentHandler):
     def Log(self, fichero, tipo, to, message):
+        """
+        Método que crea un fichero de log y lo actualiza
+        """
         fich = open(fichero, 'a')
         Time = time.strftime('%Y%m%d%H%M%S', time.gmtime())
         message = message.replace('\r\n', ' ') + '\n'
@@ -128,6 +131,7 @@ if __name__ == "__main__":
         CONFIG = sys.argv[1]
     except IndexError:
         sys.exit("Usage: python server.py config")
+    #Lectura del XML
     parser = make_parser()
     cHandler = XMLHandler()
     parser.setContentHandler(cHandler)
