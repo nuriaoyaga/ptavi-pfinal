@@ -125,6 +125,7 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             Log().Log(PR['log_path'], 'receive', UAC, line.decode('utf-8'))
             respuesta = line.decode('utf-8').split(' ')
             metod = respuesta[0]
+            self.json2registered()
             if not metod in self.METODOS:
                 LINE = 'SIP/2.0 405 Method Not Allowed\r\n\r\n'
                 self.wfile.write(bytes(LINE, 'utf-8'))
@@ -230,6 +231,17 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             json.dump(self.users_dic, fichero_json, sort_keys=True, indent=4,
                       separators=(',', ':'))
 
+    def json2registered(self):
+        """
+        Método que crea un diccionario con los usuarios registrados
+        anteriormente
+        """
+        try:
+            fich_json = open(PR['database_path'], 'r')
+            self.users_dic = json.load(fich_json)
+            print(self.users_dic)
+        except:
+            self.users_dic = {}
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
