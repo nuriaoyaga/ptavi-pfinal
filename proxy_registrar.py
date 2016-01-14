@@ -50,6 +50,7 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
     UAS = {}
     METODOS = ['REGISTER', 'INVITE', 'ACK', 'BYE']
     NONCE = random.getrandbits(100)
+    Envios = {}
 
     def Buscar_usuario(self, usuario):
         """
@@ -59,21 +60,32 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             if usuario == Client:
                 self.UAS = self.users_dic[usuario]
 
+    def UserRegist(self, usuario):
+        register = 'False'
+        for Client in self.users_dic:
+            if usuario == Client:
+                register = 'True'
+        return register
+
     def Conectar_Enviar_Decod(self, ip, puerto, line):
         """
         Método que conecta a un socket, envía y decodifica lo recibido
         """
         #Conexión y envío
+        datos = line.decode('utf-8')
+        numpuerto = PORTVal(puerto)
+        IPVal(ip)
+        LINE = datos + 'Via: SIP/2.0/UDP branch=z87ur749ru8e74\r\n'
         my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        my_sck.connect((ip, int(puerto)))
-        my_sck.send(line)
+        my_sck.connect((ip, numpuerto))
+        my_sck.send(bytes(LINE, 'utf-8'))
         Ip = self.client_address[0]
         Port = self.client_address[1]
         UAC = Ip + ' ' + str(Port)
-        UASAD = ip + ' ' + str(puerto)
-        Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
-        print("Enviamos: " + line.decode('utf-8'))
+        UASAD = ip + ' ' + puerto
+        Log().Log(PR['log_path'], 'send', UASAD, LINE)
+        print("Enviamos: " + LINE)
         #Recibe, decodifica y responde
         try:
             data = my_sck.recv(1024)
@@ -83,8 +95,20 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
             Log().Log(PR['log_path'], 'error', ' ', SCK_ERROR)
             sys.exit("Error: No server listening at " + SCK_ERROR)
         Log().Log(PR['log_path'], 'receive', UASAD, datadec)
-        self.wfile.write(bytes(datadec, 'utf-8'))
-        Log().Log(PR['log_path'], 'send', UAC, datadec)
+        rec = datadec.split('\r\n\r\n')[0:-1]
+        PROXY = 'Via: SIP/2.0/UDP branch=z87ur749ru8e74\r\n\r\n'
+        if rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring',
+                        'SIP/2.0 200 OK']:
+            SDP = datadec.split('SIP/2.0 200 OK\r\n\r\n')[1]
+            LINE = rec[0] + "\r\n" + PROXY
+            LINE += rec[1] + "\r\n" + PROXY
+            LINE += rec[2] + "\r\n" + PROXY
+            LINE += SDP
+        else:
+            LINE = datadec.split("\r\n\r\n")[0]
+            LINE += "\r\n" + PROXY
+        self.wfile.write(bytes(LINE, 'utf-8'))
+        Log().Log(PR['log_path'], 'send', UAC, LINE)
 
     def CheckPsswd(self, Path, Passwd, User_agent, Ip, Puerto):
         """
@@ -160,7 +184,8 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                         expire = respuesta[2].split('\r\n')[1].split(':')[1]
                         expires = int(expire)
                         caract_dic["address"] = self.client_address[0]
-                        caract_dic["port"] = int(respuesta[1].split(':')[2])
+                        p = respuesta[1].split(':')[2]
+                        caract_dic["port"] = PORTVal(p)
                         expiration = time.gmtime(int(time.time()) + expires)
                         timexp = time.strftime('%Y-%m-%d %H:%M:%S', expiration)
                         caract_dic["expires"] = timexp
@@ -179,46 +204,84 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                         print("Enviamos: " + LINE)
                         Log().Log(PR['log_path'], 'receive', UAC, LINE)
             elif metod == 'INVITE':
-                usuario = respuesta[1].split(':')[1]
-                self.Buscar_usuario(usuario)
-                if self.UAS == {}:
-                    LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
-                    self.wfile.write(bytes(LINE, 'utf-8'))
-                    print("Enviamos: " + LINE)
-                    Log().Log(PR['log_path'], 'send', UAC, LINE)
+                cliente = respuesta[3].split('=')[2]
+                reg = self.UserRegist(cliente)
+                if reg == 'False':
+                    sys.exit('User must be registered')
                 else:
-                    #Pasa lo que ha recibido al servidor
-                    port = str(self.UAS["port"])
-                    ip = self.UAS["address"]
-                    self.Conectar_Enviar_Decod(ip, port, line)
+                    usuario = respuesta[1].split(':')[1]
+                    self.Buscar_usuario(usuario)
+                    if self.UAS == {}:
+                        LINE = "SIP/2.0 404 User Not Found\r\n"
+                        LINE += 'Via: SIP/2.0/UDP branch=z87ur749ru8e74'
+                        LINE += '\r\n\r\n'
+                        self.wfile.write(bytes(LINE, 'utf-8'))
+                        print("Enviamos: " + LINE)
+                        Log().Log(PR['log_path'], 'send', UAC, LINE)
+                    else:
+                        v = respuesta[3].split('\r\n')[2].split('=')[0]
+                        o = respuesta[3].split('\r\n')[3].split('=')[0]
+                        s = respuesta[5].split('\r\n')[1].split('=')[0]
+                        t = respuesta[5].split('\r\n')[2].split('=')[0]
+                        m = respuesta[5].split('\r\n')[3].split('=')[0]
+                        if [v, o, s, t, m] == ['v', 'o', 's', 't', 'm']:
+                            #Pasa lo que ha recibido al servidor
+                            port = str(self.UAS["port"])
+                            ip = self.UAS["address"]
+                            UASAD = ip + ' ' + port
+                            self.Envios[cliente] = usuario
+                            self.Envios[usuario] = cliente
+                            print(self.Envios)
+                            self.Conectar_Enviar_Decod(ip, port, line)
+                        else:
+                            UASAD = self.UAS["address"]
+                            UASAD += '' + str(self.UAS["port"])
+                            LINE = "SIP/2.0 400 Bad Request\r\n"
+                            LINE += 'Via: SIP/2.0/UDP branch=z87ur749ru8e74'
+                            LINE += '\r\n\r\n'
+                            self.wfile.write(bytes(LINE, 'utf-8'))
+                            print("Enviamos: " + LINE)
+                            Log().Log(PR['log_logpath'], 'send', UASAD, LINE)
 
             elif metod == 'ACK':
                 usuario = respuesta[1].split(':')[1]
                 self.Buscar_usuario(usuario)
+                LINE = line.decode('utf-8').split("\r\n\r\n")[0] + "\r\n"
+                LINE += 'Via: SIP/2.0/UDP branch=z87ur749ru8e74\r\n\r\n'
                 #Conecta con el servidor y envía ACK
                 my_sck = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
                 my_sck.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 my_sck.connect((self.UAS["address"], self.UAS["port"]))
-                my_sck.send(line)
-                print("Enviamos: " + line.decode('utf-8'))
+                my_sck.send(bytes(LINE, 'utf-8'))
+                print("Enviamos: " + LINE)
                 UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
-                Log().Log(PR['log_path'], 'send', UASAD, line.decode('utf-8'))
+                Log().Log(PR['log_path'], 'send', UASAD, LINE)
             elif metod == 'BYE':
                 usuario = respuesta[1].split(':')[1]
                 self.Buscar_usuario(usuario)
                 if self.UAS == {}:
-                    LINE = "SIP/2.0 404 User Not Found\r\n\r\n"
+                    LINE = "SIP/2.0 404 User Not Found\r\n"
+                    LINE += 'Via: SIP/2.0/UDP branch=z87ur749ru8e74\r\n\r\n'
                     print("Enviamos: " + LINE)
                     self.wfile.write(bytes(LINE, 'utf-8'))
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
-                    #Mismo procedimiento que IVITE
-                    port = str(self.UAS["port"])
-                    ip = self.UAS["address"]
-                    self.Conectar_Enviar_Decod(ip, port, line)
+                    if usuario in self.Envios:
+                        cliente = self.Envios[usuario]
+                        del self.Envios[usuario]
+                        del self.Envios[cliente]
+                        print(self.Envios)
+                        #Mismo procedimiento que INVITE
+                        port = str(self.UAS["port"])
+                        ip = self.UAS["address"]
+                        self.Conectar_Enviar_Decod(ip, port, line)
+                        self.Participantes = []
+                    else:
+                        sys.exit("User not in conversation")
             else:
                 UASAD = self.UAS["address"] + '' + str(self.UAS["port"])
-                LINE = "SIP/2.0 400 Bad Request\r\n\r\n"
+                LINE = "SIP/2.0 400 Bad Request\r\n"
+                LINE += 'Via: SIP/2.0/UDP branch=z87ur749ru8e74\r\n\r\n'
                 self.wfile.write(bytes(LINE, 'utf-8'))
                 print("Enviamos: " + LINE)
                 Log().Log(PR['log_logpath'], 'send', UASAD, LINE)
@@ -239,9 +302,25 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
         try:
             fich_json = open(PR['database_path'], 'r')
             self.users_dic = json.load(fich_json)
-            print(self.users_dic)
         except:
             self.users_dic = {}
+
+
+def IPVal(ip):
+    try:
+        #Dirección IP válida
+        socket.inet_aton(ip)
+    except socket.error:
+        #Dirección IP no válida
+        sys.exit("Not valid IP")
+
+
+def PORTVal(port):
+    try:
+        Puerto = int(port)
+    except ValueError:
+        sys.exit("Port must be integer")
+    return Puerto
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
@@ -256,9 +335,14 @@ if __name__ == "__main__":
     parser.parse(open(CONFIG))
     PR = cHandler.get_tags()
     # Creamos servidor de eco y escuchamos
-    port = int(PR['server_puerto'])
+    port = PORTVal(PR['server_puerto'])
+    IPVal(PR['server_ip'])
     serv = socketserver.UDPServer(("", port), ProxyRegister)
     # Escribimos inicio log_proxy.txt
     Log().Log(PR['log_path'], 'init/end', ' ', 'Starting...')
     print("Lanzando servidor UDP de eco...")
-    serv.serve_forever()
+    try:
+        serv.serve_forever()
+    except KeyboardInterrupt:
+        Log().Log(PR['log_path'], 'init/end', ' ', 'Finishing...')
+        sys.exit("Terminado")
