@@ -84,7 +84,7 @@ if datadec.split('\r\n')[0] == r_401:
     Nonce = datadec.split('=')[1].split('\r\n')[0]
     m.update(bytes(UA['account_passwd'] + Nonce, 'utf-8'))
     RESPONSE = m.hexdigest()
-    Line_Authorization = "\r\n" + "Authorization: response="
+    Line_Authorization = "\r\n" + "Authorization: Digest response="
     Line_Authorization += RESPONSE + "\r\n"
     LINE_REGIST = LINE + Line_Authorization
     print ("Enviado:\r\n" + LINE_REGIST)
