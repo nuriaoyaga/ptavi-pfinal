@@ -158,14 +158,14 @@ class ProxyRegister(socketserver.DatagramRequestHandler):
                 #Comprobamos autorizacion
                 if len(respuesta) == 3:
                     LINE = 'SIP/2.0 401 Unauthorized\r\n'
-                    LINE += 'WWW Authenticate: nonce=' + str(self.NONCE)
+                    LINE += 'WWW Authenticate: Digest nonce=' + str(self.NONCE)
                     LINE += '\r\n\r\n'
                     self.wfile.write(bytes(LINE, 'utf-8'))
                     print("Enviamos: " + LINE)
                     Log().Log(PR['log_path'], 'send', UAC, LINE)
                 else:
                     usuario = respuesta[1].split(':')[1]
-                    pwd = respuesta[3].split('=')[1].split('\r\n')[0]
+                    pwd = respuesta[4].split('=')[1].split('\r\n')[0]
                     Found = self.CheckPsswd(PR['database_passwdpath'], pwd,
                                             usuario, Ip, Port)
                     if Found == 'True':
