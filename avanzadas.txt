@@ -1,2 +1,4 @@
 Reestablecer usuarios conectados
-Integracion de (c)vlc
+Integración de (c)vlc
+Cabecera Proxy
+Consistencia frente a valores erróneos
