@@ -73,19 +73,15 @@ except socket.error:
     SOCKET_ERROR = UA['regproxy_ip'] + " PORT:" + UA['regproxy_puerto']
     Log().Log(UA['log_path'], 'error', ' ', SOCKET_ERROR)
     sys.exit("Error: No server listening at " + PROXY)
-rec = datadec.split('\r\n\r\n')[0:-1]
+proxy = '\r\nVia: SIP/2.0/UDP branch=z87ur749ru8e74\r\n\r\n'
+rec = datadec.split(proxy)[0:-1]
 #Interpretación de lo recibido
-r_400 = "SIP/2.0 400 Bad Request\r\n\r\n"
-r_404 = "SIP/2.0 404 User Not Found\r\n\r\n"
-r_405 = "SIP/2.0 405 Method Not Allowed\r\n\r\n"
 r_401 = "SIP/2.0 401 Unauthorized"
-if datadec == r_400 or datadec == r_404 or datadec == r_405:
-    sys.exit(datadec)
 #Autorization
-elif rec[0].split('\r\n')[0] == r_401:
+if datadec.split('\r\n')[0] == r_401:
     #Codifica mensaje
     m = hashlib.md5()
-    Nonce = rec[0].split('=')[1]
+    Nonce = datadec.split('=')[1].split('\r\n')[0]
     m.update(bytes(UA['account_passwd'] + Nonce, 'utf-8'))
     RESPONSE = m.hexdigest()
     Line_Authorization = "\r\n" + "Authorization: response="
@@ -122,9 +118,9 @@ elif rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     os.system(aEjecutar_cvlc + "&")
     print("Ha terminado la ejecución de fichero de audio")
     Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
-elif rec == "Acceso denegado: password is incorrect\r\n\r\n":
-            print("Usage: The Password is incorrect")
+elif datadec == "Acceso denegado: password is incorrect\r\n\r\n":
+    print("Usage: The Password is incorrect")
 else:
-        sys.exit(datadec)
+    sys.exit(datadec)
 # Cerramos todo
 my_socket.close()
