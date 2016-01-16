@@ -12,6 +12,29 @@ import sys
 import socket
 import os
 import hashlib
+import threading
+
+class Thread_CVLC(threading.Thread):
+    """
+    Clase para crear hilos vcl
+    """
+
+    def __init__(self, Port, Ip, Path):
+        threading.Thread.__init__(self)
+        self.Port = Port
+        self.Ip = Ip
+        self.Path = Path
+
+    def run(self):
+        try:
+            aEjecutarcvlc = 'cvlc rtp://@' + self.Ip + ':'
+            aEjecutarcvlc += str(self.Port) + ' &'
+            os.system(aEjecutarcvlc)
+            aEjecutar = './mp32rtp -i ' + self.Ip + ' -p '
+            aEjecutar += str(self.Port) + '<' + self.Path
+            os.system(aEjecutar)
+        except:
+            sys.exit("Usage: Error en ejecución")
 
 
 # Comprobamos que se introducen datos correctos
@@ -108,14 +131,9 @@ elif rec[0:3] == ['SIP/2.0 100 Trying', 'SIP/2.0 180 Ring', 'SIP/2.0 200 OK']:
     my_socket.send(bytes(LINE_ACK, 'utf-8') + b'\r\n')
     rcv_Ip = datadec.split("o=")[1].split(" ")[1].split("s")[0]
     rcv_Port = datadec.split("m=")[1].split(" ")[1]
-    aEjecutar = './mp32rtp -i ' + rcv_Ip + ' -p '
-    aEjecutar += rcv_Port + " < " + UA['audio_path']
-    aEjecutar_cvlc = 'cvlc rtp://@' + rcv_Ip + ':'
-    aEjecutar_cvlc += rcv_Port + " 2> /dev/null"
-    print ("Vamos a ejecutar", aEjecutar)
-    print ("Vamos a ejecutar", aEjecutar_cvlc)
-    os.system(aEjecutar)
-    os.system(aEjecutar_cvlc + "&")
+    ejecutar = Thread_CVLC(rcv_Port, rcv_Ip, UA['audio_path'])
+    ejecutar.start()
+    ejecutar.join()
     print("Ha terminado la ejecución de fichero de audio")
     Log().Log(UA['log_path'], 'send', PROXY, LINE_ACK)
 elif datadec == "Acceso denegado: password is incorrect\r\n\r\n":
