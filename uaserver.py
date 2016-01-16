@@ -12,9 +12,10 @@ import os
 import time
 import threading
 
+
 class Thread_CVLC(threading.Thread):
     """
-    Clase para crear hilos vcl
+    Thread class
     """
 
     def __init__(self, Port, Ip, Path):
@@ -131,7 +132,7 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                     Log().Log(UA['log_path'], 'send', FROM, LINE)
                 elif metod == 'ACK':
                     ejecutar = Thread_CVLC(self.rcv_Port, self.rcv_Ip,
-                                            UA['audio_path'])
+                                           UA['audio_path'])
                     ejecutar.start()
                     ejecutar.join()
                 elif metod == 'BYE':
