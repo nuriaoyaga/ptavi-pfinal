@@ -8,33 +8,11 @@ from xml.sax import make_parser
 from xml.sax.handler import ContentHandler
 from uaserver import XMLHandler
 from uaserver import Log
+from uaserver import Thread_CVLC
 import sys
 import socket
 import os
 import hashlib
-import threading
-
-class Thread_CVLC(threading.Thread):
-    """
-    Clase para crear hilos vcl
-    """
-
-    def __init__(self, Port, Ip, Path):
-        threading.Thread.__init__(self)
-        self.Port = Port
-        self.Ip = Ip
-        self.Path = Path
-
-    def run(self):
-        try:
-            aEjecutarcvlc = 'cvlc rtp://@' + self.Ip + ':'
-            aEjecutarcvlc += str(self.Port) + ' &'
-            os.system(aEjecutarcvlc)
-            aEjecutar = './mp32rtp -i ' + self.Ip + ' -p '
-            aEjecutar += str(self.Port) + '<' + self.Path
-            os.system(aEjecutar)
-        except:
-            sys.exit("Usage: Error en ejecución")
 
 
 # Comprobamos que se introducen datos correctos
