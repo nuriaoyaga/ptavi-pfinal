@@ -10,6 +10,30 @@ import socketserver
 import sys
 import os
 import time
+import threading
+
+class Thread_CVLC(threading.Thread):
+    """
+    Clase para crear hilos vcl
+    """
+
+    def __init__(self, Port, Ip, Path):
+        threading.Thread.__init__(self)
+        self.Port = Port
+        self.Ip = Ip
+        self.Path = Path
+
+    def run(self):
+        try:
+            aEjecutarcvlc = 'cvlc rtp://@' + self.Ip + ':'
+            aEjecutarcvlc += str(self.Port) + ' &'
+            os.system(aEjecutarcvlc)
+            aEjecutar = './mp32rtp -i ' + self.Ip + ' -p '
+            aEjecutar += str(self.Port) + '<' + self.Path
+            os.system(aEjecutar)
+            print("Ha terminado la ejecución del archivo de audio")
+        except:
+            sys.exit("Usage: Error en ejecución")
 
 
 class XMLHandler(ContentHandler):
@@ -106,15 +130,10 @@ class ServerHandler(socketserver.DatagramRequestHandler):
                     print("Enviamos" + LINE)
                     Log().Log(UA['log_path'], 'send', FROM, LINE)
                 elif metod == 'ACK':
-                    aEjecutar = './mp32rtp -i' + self.rcv_Ip + '-p'
-                    aEjecutar += self.rcv_Port + ' < ' + UA['audio_path']
-                    aEjecutar_cvlc = 'cvlc rtp://@' + self.rcv_Ip + ':'
-                    aEjecutar_cvlc += self.rcv_Port + " 2> /dev/null"
-                    print ("Vamos a ejecutar", aEjecutar)
-                    print ("Vamos a ejecutar", aEjecutar_cvlc)
-                    os.system(aEjecutar)
-                    os.system(aEjecutar_cvlc + "&")
-                    print("Ha terminado la ejecución de fich de audio")
+                    ejecutar = Thread_CVLC(self.rcv_Port, self.rcv_Ip,
+                                            UA['audio_path'])
+                    ejecutar.start()
+                    ejecutar.join()
                 elif metod == 'BYE':
                     LINE = "SIP/2.0 200 OK\r\n\r\n"
                     self.wfile.write(bytes(LINE, 'utf-8'))
